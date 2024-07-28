@@ -72,6 +72,7 @@ primary:
 
 	/* Prepare stack pointer and jump to C. */
 	adr 	x0, boot_cpu_stack
+	// high address -> low address
 	add 	x0, x0, #INIT_STACK_SIZE
 	mov 	sp, x0
 

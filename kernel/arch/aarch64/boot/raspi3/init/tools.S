@@ -70,6 +70,9 @@
 BEGIN_FUNC(arm64_elX_to_el1)
 	/* LAB 1 TODO 1 BEGIN */
 	/* BLANK BEGIN */
+	// Get the exception level and store into the x9 register
+	mrs x9, CurrentEL
+	and x9, x9, #0xc
 	/* BLANK END */
 	/* LAB 1 TODO 1 END */
 
@@ -89,6 +92,9 @@ BEGIN_FUNC(arm64_elX_to_el1)
 	// Set the return address and exception level.
 	/* LAB 1 TODO 2 BEGIN */
 	/* BLANK BEGIN */
+	msr elr_el3, x30
+	mov x9, SPSR_ELX_DAIF | SPSR_ELX_EL1H
+	msr spsr_el3, x9
 	/* BLANK END */
 	/* LAB 1 TODO 2 END */
 
@@ -267,6 +273,7 @@ BEGIN_FUNC(el1_mmu_activate)
 	/* Enable MMU */
 	/* LAB 1 TODO 4 BEGIN */
 	/* BLANK BEGIN */
+	orr     x8, x8, #SCTLR_EL1_M
 	/* BLANK END */
 	/* LAB 1 TODO 4 END */
 	/* Disable alignment checking */
@@ -286,6 +293,7 @@ END_FUNC(el1_mmu_activate)
 
 
 /* These simple function is written by ChCorers */
+// xiunian: use to send a single charactor to target IO register (memory-mapped I/O)
 BEGIN_FUNC(early_put32)
 	str w1, [x0]
 	ret

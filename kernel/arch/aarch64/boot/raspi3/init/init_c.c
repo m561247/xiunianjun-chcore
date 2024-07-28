@@ -52,6 +52,7 @@ static void wakeup_other_cores(void)
 	addr = (u64 *)0xf0;
 	*addr = TEXT_OFFSET;
 
+	// xiunian: but there is no wfe having been called...
 	/*
 	 * Instruction sev (set event) for waking up other (non-primary) cores
 	 * that executes wfe instruction.
@@ -65,7 +66,7 @@ static void clear_bss(void)
 	u64 bss_end_addr;
 	u64 i;
 
-	bss_start_addr = (u64)&_bss_start;
+	bss_start_addr = (u64)&_bss_start;	// defined in the ld
 	bss_end_addr = (u64)&_bss_end;
 
 	for (i = bss_start_addr; i < bss_end_addr; ++i)
