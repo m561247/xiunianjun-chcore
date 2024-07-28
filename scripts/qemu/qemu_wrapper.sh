@@ -46,4 +46,5 @@ if [[ "$qemu" == *"qemu-system-aarch64"* ]]; then
     fi
 fi
 
+echo "${qemu} ${qemu_options}"
 $qemu $qemu_options
