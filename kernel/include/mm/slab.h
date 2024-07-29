@@ -19,7 +19,9 @@
  * order range: [SLAB_MIN_ORDER, SLAB_MAX_ORDER]
  * ChCore prepares the slab for each order in the range.
  */
+// 2^5
 #define SLAB_MIN_ORDER (5)
+// 2^11
 #define SLAB_MAX_ORDER (11)
 
 /* The size of one slab is 2M. */

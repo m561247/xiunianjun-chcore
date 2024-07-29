@@ -33,7 +33,7 @@ struct page {
         // xiunian: free == (allocated == 0)
         /* Whether the correspond physical page is free now. */
         int allocated;
-        /* The order of the memory chunck that this page belongs to. */
+        /* The order of the memory chunk that this page belongs to. */
         int order;
         /* Used for ChCore slab allocator. */
         void *slab;

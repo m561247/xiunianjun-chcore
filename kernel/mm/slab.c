@@ -31,6 +31,7 @@ static inline int order_to_index(int order)
 }
 */
 
+// xiunian: use to calculate both order in slab or order in buddy
 static inline int size_to_order(unsigned long size)
 {
         unsigned long order = 0;
@@ -106,6 +107,7 @@ static struct slab_header *init_slab_cache(int order, int size)
         unsigned long cnt, obj_size;
         int i;
 
+        // xiunian: get continuous pages from the buddy; buddy order is counted by size
         addr = alloc_slab_memory(size);
         if (unlikely(addr == NULL))
                 /* Fail: no available memory. */
@@ -114,9 +116,13 @@ static struct slab_header *init_slab_cache(int order, int size)
 
         obj_size = order_to_size(order);
         /* The first slot is used as metadata (struct slab_header). */
+        // xiunian: it solves the question, which one borns first, chicken or egg...
         BUG_ON(obj_size == 0);
         cnt = size / obj_size - 1;
 
+        // xiunian: point to the first slot
+        // an elegant method to prevent the double-pointer case. just use struct->next, do not use **next.
+        // which can also be converted to * directly.
         slot = (struct slab_slot_list *)((vaddr_t)addr + obj_size);
         slab->free_list_head = (void *)slot;
         slab->order = order;
@@ -124,6 +130,7 @@ static struct slab_header *init_slab_cache(int order, int size)
         slab->current_free_cnt = cnt;
 
         /* The last slot has no next one. */
+        // xiunian: the next pointer is in the head of an object
         for (i = 0; i < cnt - 1; ++i) {
                 slot->next_free = (void *)((unsigned long)slot + obj_size);
                 slot = (struct slab_slot_list *)((unsigned long)slot
@@ -139,7 +146,17 @@ static void choose_new_current_slab(struct slab_pointer *pool)
         /* LAB 2 TODO 2 BEGIN */
         /* Hint: Choose a partial slab to be a new current slab. */
         /* BLANK BEGIN */
+        struct slab_header *slab;
 
+        for_each_in_list (slab,
+                          struct slab_header,
+                          node,
+                          &(pool->partial_slab_list)) {
+                if (slab->current_free_cnt != 0) {
+                        pool->current_slab = slab;
+                        return;
+                }
+        }
         /* BLANK END */
         /* LAB 2 TODO 2 END */
 }
@@ -169,12 +186,23 @@ static void *alloc_in_slab_impl(int order)
          * If current slab is full, choose a new slab as the current one.
          */
         /* BLANK BEGIN */
+        free_list = (struct slab_slot_list *)(current_slab->free_list_head);
+        if (!free_list) {
+                list_append(&current_slab->node, &slab_pool[order].partial_slab_list);
+                choose_new_current_slab(&(slab_pool[order]));
+                current_slab = slab_pool[order].current_slab;
+                free_list = (struct slab_slot_list *)(current_slab->free_list_head);
+        }
+        if (!free_list) return NULL;
 
+        current_slab->free_list_head = free_list->next_free;
+        current_slab->current_free_cnt -= 1;
         /* BLANK END */
         /* LAB 2 TODO 2 END */
 
         unlock(&slabs_locks[order]);
 
+        // xiunian: do not need to step the header. just rewrite it.
         return (void *)free_list;
 }
 
@@ -296,7 +324,10 @@ void free_in_slab(void *addr)
          * Hint: Free an allocated slot and put it back to the free list.
          */
         /* BLANK BEGIN */
-
+        BUG_ON(slab->current_free_cnt >= slab->total_free_cnt);
+        slot->next_free = (struct slab_slot_list *)(slab->free_list_head);
+        slab->free_list_head = (void *)slot;
+        slab->current_free_cnt ++;
         /* BLANK END */
         /* LAB 2 TODO 2 END */
 
