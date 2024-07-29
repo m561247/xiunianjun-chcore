@@ -25,6 +25,16 @@ static struct page *get_buddy_chunk(struct phys_mem_pool *pool,
         /* Get the address of the chunk. */
         chunk_addr = (vaddr_t)page_to_virt(chunk);
         order = chunk->order;
+        /* xiunian:
+         * How to check whether it is a buddy?
+         * Two adjant page only differs in one bit, which is (1 << 12 + order).
+         * Page 1 and page 2 is buddy when 
+         *         order1 == order2 && 
+         *         (page1 & (~(1 << (12 + order)))) == (page2 & (~(1 << (12 + order)))).
+         * And if you want to get the buddy of one page, you just need to differ the
+         * specific one bit, using the xor just like below:
+         * buddy = page ^ (1 << (BUDDY_PAGE_SIZE_ORDER + order))
+        */
         /*
          * Calculate the address of the buddy chunk according to the address
          * relationship between buddies.
@@ -53,7 +63,23 @@ static struct page *split_chunk(struct phys_mem_pool *pool, int order,
          * a suitable free list.
          */
         /* BLANK BEGIN */
+        BUG_ON(chunk->order < order);
 
+        list_del(&(chunk->node));
+        pool->free_lists[chunk->order].nr_free -= 1;
+        if (chunk->order == order)  return chunk;
+
+        chunk->order -= 1;
+        // buddy->order -= 1;
+
+        struct page *buddy = get_buddy_chunk(pool, chunk);
+        BUG_ON(!buddy || buddy->allocated || chunk->order != buddy->order);
+
+        list_add(&(chunk->node), &(pool->free_lists[chunk->order].free_list));
+        list_add(&(buddy->node), &(pool->free_lists[chunk->order].free_list));
+        pool->free_lists[chunk->order].nr_free += 2;
+
+        return split_chunk(pool, order, buddy);
         /* BLANK END */
         /* LAB 2 TODO 1 END */
 }
@@ -68,7 +94,21 @@ static struct page *merge_chunk(struct phys_mem_pool *pool, struct page *chunk)
          * if possible.
          */
         /* BLANK BEGIN */
+        list_add(&(chunk->node), &(pool->free_lists[chunk->order].free_list));
+        pool->free_lists[chunk->order].nr_free += 1;
+        if (chunk->order == BUDDY_MAX_ORDER - 1)        return chunk;
 
+        struct page *buddy = get_buddy_chunk(pool, chunk);
+        if (!buddy || buddy->allocated || chunk->order != buddy->order) return chunk;
+
+        list_del(&(buddy->node));
+        list_del(&(chunk->node));
+        pool->free_lists[chunk->order].nr_free -= 2;
+
+        // chunk->order += 1;
+        buddy->order += 1;
+
+        return merge_chunk(pool, buddy);
         /* BLANK END */
         /* LAB 2 TODO 1 END */
 }
@@ -87,6 +127,7 @@ void init_buddy(struct phys_mem_pool *pool, struct page *start_page,
         int page_idx;
         struct page *page;
 
+        // xiunian: should initiallize the lock first
         BUG_ON(lock_init(&pool->buddy_lock) != 0);
 
         /* Init the physical memory pool. */
@@ -140,7 +181,14 @@ struct page *buddy_get_pages(struct phys_mem_pool *pool, int order)
          * in the free lists, then split it if necessary.
          */
         /* BLANK BEGIN */
-
+        int required_order = order;
+        while (pool->free_lists[order].nr_free == 0) {
+                order ++;
+                if (order == BUDDY_MAX_ORDER)   goto out;
+        }
+        page = split_chunk(pool, required_order, pool->free_lists[order].free_list.next);
+        BUG_ON(page->allocated);
+        page->allocated = 1;
         /* BLANK END */
         /* LAB 2 TODO 1 END */
 out:
@@ -148,6 +196,12 @@ out:
         return page;
 }
 
+// xiunian: in this function, we should insert into the lowest order, and tries to
+// merge upward
+// To do this, we can maintain the sequential order and use the binary search,
+// but it adds some complexity so I just simply traverse the whole child list.
+// xiunian: here I always assume that the input param page is the first page of one
+// memory block. Otherwise the BUG_ON will GG.
 void buddy_free_pages(struct phys_mem_pool *pool, struct page *page)
 {
         int order;
@@ -161,7 +215,9 @@ void buddy_free_pages(struct phys_mem_pool *pool, struct page *page)
          * a suitable free list.
          */
         /* BLANK BEGIN */
-
+        BUG_ON(!(page->allocated));
+        page->allocated = 0;
+        merge_chunk(pool, page);
         /* BLANK END */
         /* LAB 2 TODO 1 END */
 
