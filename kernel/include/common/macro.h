@@ -30,10 +30,11 @@
 
 #define BIT(x)			(1ULL << (x))
 
+// xiunian: interesting!
 #define offsetof(TYPE, MEMBER)  ((size_t)&((TYPE *)0)->MEMBER)
 #define container_of(ptr, type, field) \
 	((type *)((void *)(ptr) - (void *)(&(((type *)(0))->field))))
-
+// xiunian: add check case for NULL pointer
 #define container_of_safe(ptr, type, field) ({ \
 	typeof (ptr) __ptr = (ptr); \
 	type *__obj = container_of(__ptr, type, field); \

@@ -16,7 +16,7 @@
 #include <common/macro.h>
 #include <common/types.h>
 
-
+// xiunian: a double-linked list
 struct list_head {
 	struct list_head *prev;
 	struct list_head *next;
@@ -28,6 +28,7 @@ static inline void init_list_head(struct list_head *list)
 	list->prev = list;
 }
 
+// xiunian: insert after the head closely
 static inline void list_add(struct list_head *new, struct list_head *head)
 {
 	new->next = head->next;
@@ -36,6 +37,7 @@ static inline void list_add(struct list_head *new, struct list_head *head)
 	head->next = new;
 }
 
+// xiunian: insert in the end of the list
 static inline void list_append(struct list_head *new, struct list_head *head)
 {
 	struct list_head *tail = head->prev;

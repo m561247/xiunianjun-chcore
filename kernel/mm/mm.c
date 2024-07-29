@@ -49,6 +49,7 @@ static void init_buddy_for_one_physmem_map(int physmem_map_idx)
 #endif
         npages = (free_mem_end - free_mem_start)
                  / (PAGE_SIZE + sizeof(struct page));
+        // xiunian: begin after the page structures
         free_page_start = ROUND_UP(
                 free_mem_start + npages * sizeof(struct page), PAGE_SIZE);
 

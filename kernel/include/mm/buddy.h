@@ -25,10 +25,12 @@ extern int physmem_map_num;
 
 /* All the following symbols are only used locally in the mm module. */
 
+// xiunian: then we can use container of list head to get the struct page
 /* `struct page` is the metadata of one physical 4k page. */
 struct page {
         /* Free list */
         struct list_head node;
+        // xiunian: free == (allocated == 0)
         /* Whether the correspond physical page is free now. */
         int allocated;
         /* The order of the memory chunck that this page belongs to. */
@@ -45,7 +47,7 @@ struct free_list {
 };
 
 /*
- * Supported Order: [0, BUDDY_MAX_ORDER).
+ * Supported Order: \[0, BUDDY_MAX_ORDER).
  * The max allocated size (continous physical memory size) is
  * 2^(BUDDY_MAX_ORDER - 1) * 4K.
  * Given BUDDY_MAX_ORDER is 14, the max allocated chunk is 32M.
