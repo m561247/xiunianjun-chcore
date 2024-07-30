@@ -70,16 +70,18 @@ static struct page *split_chunk(struct phys_mem_pool *pool, int order,
         if (chunk->order == order)  return chunk;
 
         chunk->order -= 1;
-        // buddy->order -= 1;
-
         struct page *buddy = get_buddy_chunk(pool, chunk);
-        BUG_ON(!buddy || buddy->allocated || chunk->order != buddy->order);
+        BUG_ON(!buddy || buddy->allocated || (chunk->order != buddy->order - 1 && chunk->order != buddy->order + 1));
+        buddy->order -= 1;
 
         list_add(&(chunk->node), &(pool->free_lists[chunk->order].free_list));
         list_add(&(buddy->node), &(pool->free_lists[chunk->order].free_list));
         pool->free_lists[chunk->order].nr_free += 2;
 
-        return split_chunk(pool, order, buddy);
+        if ((u64)buddy > (u64)chunk)
+                return split_chunk(pool, order, buddy);
+        else
+                return split_chunk(pool, order, chunk);
         /* BLANK END */
         /* LAB 2 TODO 1 END */
 }
@@ -99,16 +101,20 @@ static struct page *merge_chunk(struct phys_mem_pool *pool, struct page *chunk)
         if (chunk->order == BUDDY_MAX_ORDER - 1)        return chunk;
 
         struct page *buddy = get_buddy_chunk(pool, chunk);
-        if (!buddy || buddy->allocated || chunk->order != buddy->order) return chunk;
+        if (!buddy || buddy->allocated) return chunk;
+        BUG_ON (chunk->order != buddy->order);
 
         list_del(&(buddy->node));
         list_del(&(chunk->node));
         pool->free_lists[chunk->order].nr_free -= 2;
 
-        // chunk->order += 1;
+        chunk->order += 1;
         buddy->order += 1;
 
-        return merge_chunk(pool, buddy);
+        if ((u64)buddy < (u64)chunk)
+                return merge_chunk(pool, buddy);
+        else
+                return merge_chunk(pool, chunk);
         /* BLANK END */
         /* LAB 2 TODO 1 END */
 }

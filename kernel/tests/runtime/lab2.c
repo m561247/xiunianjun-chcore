@@ -113,6 +113,7 @@ void lab2_test_buddy(void)
 
 void lab2_test_kmalloc(void)
 {
+        struct phys_mem_pool *pool = &global_mem[0];
         /* This can test both boot page table and buddy system. */
         bool ok = true;
         {
@@ -138,6 +139,40 @@ void lab2_test_kmalloc(void)
                         lab_assert(p[i] == 0);
                 }
                 kfree(p);
+        }
+        {
+                for (int i = 0; i < BUDDY_MAX_ORDER; i ++) {
+                        printk("order[%d] free = %d\n", i, pool->free_lists[i].nr_free);
+                }
+                printk("=============alloc p0\n");
+                u8 *p0 = (u8 *)kzalloc(0x10000);
+                for (int i = 0; i < BUDDY_MAX_ORDER; i ++) {
+                        printk("order[%d] free = %d\n", i, pool->free_lists[i].nr_free);
+                }
+                printk("=============alloc p\n");
+                u8 *p = (u8 *)kzalloc(0x4000);
+                for (int i = 0; i < BUDDY_MAX_ORDER; i ++) {
+                        printk("order[%d] free = %d\n", i, pool->free_lists[i].nr_free);
+                }
+                printk("=============alloc p2\n");
+                u8 *p2 = (u8 *)kzalloc(0x4000);
+                for (int i = 0; i < BUDDY_MAX_ORDER; i ++) {
+                        printk("order[%d] free = %d\n", i, pool->free_lists[i].nr_free);
+                }
+                printk("=============free p1\n");
+                kfree(p);
+                for (int i = 0; i < BUDDY_MAX_ORDER; i ++) {
+                        printk("order[%d] free = %d\n", i, pool->free_lists[i].nr_free);
+                }
+                printk("=============free p2\n");
+                kfree(p2);
+                for (int i = 0; i < BUDDY_MAX_ORDER; i ++) {
+                        printk("order[%d] free = %d\n", i, pool->free_lists[i].nr_free);
+                }
+                kfree(p0);
+                for (int i = 0; i < BUDDY_MAX_ORDER; i ++) {
+                        printk("order[%d] free = %d\n", i, pool->free_lists[i].nr_free);
+                }
         }
         lab_check(ok, "kmalloc");
 }
