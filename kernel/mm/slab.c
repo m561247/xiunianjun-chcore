@@ -121,8 +121,8 @@ static struct slab_header *init_slab_cache(int order, int size)
         cnt = size / obj_size - 1;
 
         // xiunian: point to the first slot
-        // an elegant method to prevent the double-pointer case. just use struct->next, do not use **next.
-        // which can also be converted to * directly.
+        // an elegant method to prevent the double-pointer case. just use struct->next, 
+        // rather than use **next, which can also be converted to * directly.
         slot = (struct slab_slot_list *)((vaddr_t)addr + obj_size);
         slab->free_list_head = (void *)slot;
         slab->order = order;
@@ -130,8 +130,8 @@ static struct slab_header *init_slab_cache(int order, int size)
         slab->current_free_cnt = cnt;
 
         /* The last slot has no next one. */
-        // xiunian: the next pointer is in the head of an object
         for (i = 0; i < cnt - 1; ++i) {
+                // xiunian: the next pointer is in the head of an object
                 slot->next_free = (void *)((unsigned long)slot + obj_size);
                 slot = (struct slab_slot_list *)((unsigned long)slot
                                                  + obj_size);
@@ -146,17 +146,24 @@ static void choose_new_current_slab(struct slab_pointer *pool)
         /* LAB 2 TODO 2 BEGIN */
         /* Hint: Choose a partial slab to be a new current slab. */
         /* BLANK BEGIN */
+        struct slab_header *current_slab = &(pool->current_slab->node);
         struct slab_header *slab;
+        pool->current_slab = NULL;
 
         for_each_in_list (slab,
                           struct slab_header,
                           node,
                           &(pool->partial_slab_list)) {
-                if (slab->current_free_cnt != 0) {
+                // greedily pick the slab with the most free blocks
+                if (!(pool->current_slab) || slab->current_free_cnt > pool->current_slab->current_free_cnt) {
                         pool->current_slab = slab;
-                        return;
                 }
         }
+
+        if (current_slab)
+                list_add(current_slab, &(pool->partial_slab_list));
+        if (pool->current_slab)
+                list_del(&(pool->current_slab->node));
         /* BLANK END */
         /* LAB 2 TODO 2 END */
 }
@@ -188,14 +195,16 @@ static void *alloc_in_slab_impl(int order)
         /* BLANK BEGIN */
         free_list = (struct slab_slot_list *)(current_slab->free_list_head);
         if (!free_list) {
-                list_append(&current_slab->node, &slab_pool[order].partial_slab_list);
+                BUG_ON(current_slab->current_free_cnt != 0);
                 choose_new_current_slab(&(slab_pool[order]));
                 current_slab = slab_pool[order].current_slab;
                 free_list = (struct slab_slot_list *)(current_slab->free_list_head);
         }
         if (!free_list) return NULL;
+        BUG_ON(current_slab->current_free_cnt <= 0);
 
-        current_slab->free_list_head = free_list->next_free;
+        next_slot = free_list->next_free;
+        current_slab->free_list_head = next_slot;
         current_slab->current_free_cnt -= 1;
         /* BLANK END */
         /* LAB 2 TODO 2 END */
@@ -305,6 +314,7 @@ void free_in_slab(void *addr)
         order = slab->order;
         lock(&slabs_locks[order]);
 
+        // xiunian: i feel a little puzzled why call this here
         try_insert_full_slab_to_partial(slab);
 
 #if ENABLE_DETECTING_DOUBLE_FREE_IN_SLAB == ON

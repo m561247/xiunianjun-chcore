@@ -45,6 +45,7 @@
 /* PAGE_SIZE (4k) == (1 << (PAGE_SHIFT)) */
 #define PAGE_SHIFT                          (12)
 #define PAGE_MASK                           (PAGE_SIZE - 1)
+// xiunian: one page can store 512(2^9) ptes
 #define PAGE_ORDER                          (9)
 
 #define PTP_INDEX_MASK			    ((1 << (PAGE_ORDER)) - 1)
@@ -58,6 +59,7 @@
 #define GET_L2_INDEX(addr) (((addr) >> L2_INDEX_SHIFT) & PTP_INDEX_MASK)
 #define GET_L3_INDEX(addr) (((addr) >> L3_INDEX_SHIFT) & PTP_INDEX_MASK)
 
+// xiunian: 512
 #define PTP_ENTRIES               (1UL << PAGE_ORDER)
 /* Number of 4KB-pages that an Lx-block describes */
 #define L0_PER_ENTRY_PAGES	  ((PTP_ENTRIES) * (L1_PER_ENTRY_PAGES))

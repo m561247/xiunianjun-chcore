@@ -101,8 +101,7 @@ static struct page *merge_chunk(struct phys_mem_pool *pool, struct page *chunk)
         if (chunk->order == BUDDY_MAX_ORDER - 1)        return chunk;
 
         struct page *buddy = get_buddy_chunk(pool, chunk);
-        if (!buddy || buddy->allocated) return chunk;
-        BUG_ON (chunk->order != buddy->order);
+        if (!buddy || buddy->allocated || chunk->order != buddy->order) return chunk;
 
         list_del(&(buddy->node));
         list_del(&(chunk->node));
