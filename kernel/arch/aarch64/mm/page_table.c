@@ -352,11 +352,11 @@ int map_range_in_pgtbl_kernel_init(void *pgtbl, vaddr_t va, paddr_t pa, size_t l
                 paddr_t new_ptp_paddr;
                 pte_t new_pte_val;
 
-                while (level <= L2 && (ret = get_next_ptp(cur_ptp, level++, va, &next_ptp, &pte, false)) == NORMAL_PTP) {
-                // while (level <= L2 && (ret = get_next_ptp(cur_ptp, level++, va, &next_ptp, &pte, true)) == NORMAL_PTP) {
+                // while (level <= L2 && (ret = get_next_ptp(cur_ptp, level++, va, &next_ptp, &pte, false)) == NORMAL_PTP) {
+                while (level <= L2 && (ret = get_next_ptp(cur_ptp, level++, va, &next_ptp, &pte, true)) == NORMAL_PTP) {
                         cur_ptp = next_ptp;
                 }
-                BUG_ON(level <= L2 || ret != BLOCK_PTP);
+                // BUG_ON(level <= L2 || ret != BLOCK_PTP);
                 // printk("%llx   %d  %d  111\n", va, level, ret);
                 /* alloc a single physical page as a new page table page */
                 new_ptp = get_pages(0);

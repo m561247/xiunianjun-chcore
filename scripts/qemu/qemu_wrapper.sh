@@ -47,3 +47,5 @@ if [[ "$qemu" == *"qemu-system-aarch64"* ]]; then
 fi
 
 $qemu $qemu_options
+# qemu-system-aarch64  -S -gdb tcp::1234 -machine raspi3 -nographic -serial mon:stdio -m size=1G -kernel ./build/kernel.img -d int
+# qemu-system-aarch64 -machine raspi3 -nographic -serial mon:stdio -m size=1G -kernel ./build/kernel.img -d int

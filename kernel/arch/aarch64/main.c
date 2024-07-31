@@ -55,16 +55,16 @@ void init_kernel_pt_fine_grained(void)
         /* Normal memory: PHYSMEM_START ~ PERIPHERAL_BASE */
         /* No NG bit here since the kernel mappings are shared */
         vaddr = PHYSMEM_START + KBASE;
-        // map_range_in_pgtbl_kernel_init(pgtbl, 
-        map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
+        map_range_in_pgtbl_kernel_init(pgtbl, 
+        // map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
                         vaddr, vaddr - KBASE, PERIPHERAL_BASE - PHYSMEM_START, 
                         VMR_EXEC | VMR_READ | VMR_WRITE);
         // printk("init_kernel_pt_fine_grained2\n");
 
         /* Peripheral memory: PERIPHERAL_BASE ~ PHYSMEM_END */
         vaddr = KBASE + PERIPHERAL_BASE;
-        // map_range_in_pgtbl_kernel_init(pgtbl, 
-        map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
+        map_range_in_pgtbl_kernel_init(pgtbl, 
+        // map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
                         vaddr, vaddr - KBASE, PHYSMEM_END - PERIPHERAL_BASE, 
                         VMR_EXEC | VMR_READ | VMR_WRITE | VMR_DEVICE);
         // printk("init_kernel_pt_fine_grained3\n");
@@ -79,15 +79,19 @@ void init_kernel_pt_fine_grained(void)
                                 && pte->l3_page.is_page));
         }
 
-        // printk("init_kernel_pt_fine_grained4\n");
-		// __asm__ volatile (
-		// 	"mov x8, %0\n"          // 将pgtbl的值移动到寄存器x8
-		// 	"msr ttbr1_el1, x8\n"   // 将x8的值写入ttbr1_el1
-		// 	"isb\n"                 // 指令同步屏障
-		// 	:
-		// 	: "r" (pgtbl)           // 输入操作数，pgtbl的值
-		// 	: "x8"                  // 被修改的寄存器
-		// );
+        printk("init_kernel_pt_fine_grained4\n");
+		__asm__ volatile (
+			"mov x8, %0\n"          // 将pgtbl的值移动到寄存器x8
+			"dsb	sy\n"
+			"isb\n"                 // 指令同步屏障
+			"msr ttbr1_el1, x8\n"   // 将x8的值写入ttbr1_el1
+			"tlbi	vmalle1is\n"
+			"dsb	sy\n"
+			"isb\n"                 // 指令同步屏障
+			:
+			: "r" (pgtbl)           // 输入操作数，pgtbl的值
+			: "x8"                  // 被修改的寄存器
+		);
         flush_tlb_all();
 		// set_page_table(pgtbl);
 }
