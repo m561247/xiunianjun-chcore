@@ -47,7 +47,7 @@ void init_kernel_pt_fine_grained(void)
 {
         u64 vaddr;
 
-        printk("init_kernel_pt_fine_grained1\n");
+        // printk("init_kernel_pt_fine_grained1\n");
         void *pgtbl = get_pages(0);
         memset(pgtbl, 0, PAGE_SIZE);
         size_t nr_pages = PHYSMEM_END / PAGE_SIZE;
@@ -55,19 +55,19 @@ void init_kernel_pt_fine_grained(void)
         /* Normal memory: PHYSMEM_START ~ PERIPHERAL_BASE */
         /* No NG bit here since the kernel mappings are shared */
         vaddr = PHYSMEM_START + KBASE;
-        map_range_in_pgtbl_kernel_init(pgtbl, 
-        // map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
+        // map_range_in_pgtbl_kernel_init(pgtbl, 
+        map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
                         vaddr, vaddr - KBASE, PERIPHERAL_BASE - PHYSMEM_START, 
                         VMR_EXEC | VMR_READ | VMR_WRITE);
-        printk("init_kernel_pt_fine_grained2\n");
+        // printk("init_kernel_pt_fine_grained2\n");
 
         /* Peripheral memory: PERIPHERAL_BASE ~ PHYSMEM_END */
         vaddr = KBASE + PERIPHERAL_BASE;
-        map_range_in_pgtbl_kernel_init(pgtbl, 
-        // map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
+        // map_range_in_pgtbl_kernel_init(pgtbl, 
+        map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
                         vaddr, vaddr - KBASE, PHYSMEM_END - PERIPHERAL_BASE, 
                         VMR_EXEC | VMR_READ | VMR_WRITE | VMR_DEVICE);
-        printk("init_kernel_pt_fine_grained3\n");
+        // printk("init_kernel_pt_fine_grained3\n");
 
         paddr_t pa;
         pte_t *pte;
@@ -88,6 +88,7 @@ void init_kernel_pt_fine_grained(void)
 		// 	: "r" (pgtbl)           // 输入操作数，pgtbl的值
 		// 	: "x8"                  // 被修改的寄存器
 		// );
+        flush_tlb_all();
 		// set_page_table(pgtbl);
 }
 
@@ -116,6 +117,7 @@ void main(paddr_t boot_flag, void *info)
 	mm_init(info);
 
 	kinfo("[ChCore] mm init finished\n");
+	printk("cpu stack %llx\n", cpu_stacks);
 
 	void lab2_test_buddy(void);
 	lab2_test_buddy();
@@ -132,13 +134,13 @@ void main(paddr_t boot_flag, void *info)
 			KSTACKx_ADDR(0),
 			(unsigned long)(cpu_stacks[0]) - KBASE, 
 			CPU_STACK_SIZE, VMR_READ | VMR_WRITE);
+	init_kernel_pt_fine_grained();
 
 	/* Init exception vector */
 	arch_interrupt_init();
 	timer_init();
 	kinfo("[ChCore] interrupt init finished\n");
 
-	init_kernel_pt_fine_grained();
 	/* Enable PMU by setting PMCR_EL0 register */
 	pmu_init();
 	kinfo("[ChCore] pmu init finished\n");
