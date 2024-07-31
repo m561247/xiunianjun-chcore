@@ -157,6 +157,7 @@ static int get_next_ptp(ptp_t *cur_ptp, u32 level, vaddr_t va, ptp_t **next_ptp,
         }
 
         entry = &(cur_ptp->ent[index]);
+        *pte = entry;
         if (IS_PTE_INVALID(entry->pte)) {
                 if (alloc == false) {
                         return -ENOMAPPING;
@@ -360,13 +361,14 @@ static int map_range_in_pgtbl_common(void *pgtbl, vaddr_t va, paddr_t pa, size_t
                 ptp_t *next_ptp;
                 pte_t *pte;
 
-                while (level <= L3 && (ret = get_next_ptp(cur_ptp, level++, va, &next_ptp, &pte, true)) == NORMAL_PTP) {
+                while (level <= L3 && (ret = get_next_ptp(cur_ptp, level++, va, &next_ptp, &pte, level <= L3)) == NORMAL_PTP) {
                         cur_ptp = next_ptp;
                 }
-                if (ret < 0)     return ret;
+                if (ret < 0 && !(ret == -ENOMAPPING && level == 4))     return ret;
+                BUG_ON(!(ret == -ENOMAPPING && level == 4));
+                
                 pte->l3_page.is_valid = 1;
                 pte->l3_page.is_page = 1;
-                kfree(phys_to_virt(pte->l3_page.pfn << L3_INDEX_SHIFT));
                 pte->l3_page.pfn = (pa >> L3_INDEX_SHIFT);
                 BUG_ON(set_pte_flags(pte, flags, kind));
         }

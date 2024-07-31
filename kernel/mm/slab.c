@@ -146,7 +146,7 @@ static void choose_new_current_slab(struct slab_pointer *pool)
         /* LAB 2 TODO 2 BEGIN */
         /* Hint: Choose a partial slab to be a new current slab. */
         /* BLANK BEGIN */
-        struct slab_header *current_slab = &(pool->current_slab->node);
+        struct list_head *current_slab_node = &(pool->current_slab->node);
         struct slab_header *slab;
         pool->current_slab = NULL;
 
@@ -160,8 +160,8 @@ static void choose_new_current_slab(struct slab_pointer *pool)
                 }
         }
 
-        if (current_slab)
-                list_add(current_slab, &(pool->partial_slab_list));
+        if (current_slab_node)
+                list_add(current_slab_node, &(pool->partial_slab_list));
         if (pool->current_slab)
                 list_del(&(pool->current_slab->node));
         /* BLANK END */
