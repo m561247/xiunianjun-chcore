@@ -40,6 +40,46 @@ void run_test(void);
 
 void init_fpu_owner_locks(void);
 
+#define PHYSMEM_START   (0x0UL)
+#define PERIPHERAL_BASE (0x3F000000UL)
+#define PHYSMEM_END     (0x40000000UL)
+void init_kernel_pt_fine_grained(void)
+{
+        u64 vaddr;
+
+        printk("init_kernel_pt_fine_grained1\n");
+        void *pgtbl = get_pages(0);
+        memset(pgtbl, 0, PAGE_SIZE);
+        size_t nr_pages = PHYSMEM_END / PAGE_SIZE;
+        /* TTBR1_EL1 0-1G */
+        /* Normal memory: PHYSMEM_START ~ PERIPHERAL_BASE */
+        /* No NG bit here since the kernel mappings are shared */
+        vaddr = PHYSMEM_START + KBASE;
+        map_range_in_pgtbl_kernel_init(pgtbl, 
+        // map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
+                        vaddr, vaddr - KBASE, PERIPHERAL_BASE - PHYSMEM_START, 
+                        VMR_EXEC | VMR_READ | VMR_WRITE);
+        printk("init_kernel_pt_fine_grained2\n");
+
+        /* Peripheral memory: PERIPHERAL_BASE ~ PHYSMEM_END */
+        vaddr = KBASE + PERIPHERAL_BASE;
+        map_range_in_pgtbl_kernel_init(pgtbl, 
+        // map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
+                        vaddr, vaddr - KBASE, PHYSMEM_END - PERIPHERAL_BASE, 
+                        VMR_EXEC | VMR_READ | VMR_WRITE | VMR_DEVICE);
+        printk("init_kernel_pt_fine_grained3\n");
+
+        paddr_t pa;
+        pte_t *pte;
+        int ret;
+        for (int i = 0; i < nr_pages; i++) {
+                ret = query_in_pgtbl(pgtbl, KBASE + i * PAGE_SIZE, &pa, &pte);
+                BUG_ON(!(ret == 0 && pa == i * PAGE_SIZE));
+                BUG_ON(!(pte && pte->l3_page.is_valid
+                                && pte->l3_page.is_page));
+        }
+}
+
 /*
  * @boot_flag is boot flag addresses for smp;
  * @info is now only used as board_revision for rpi4.
@@ -87,6 +127,7 @@ void main(paddr_t boot_flag, void *info)
 	timer_init();
 	kinfo("[ChCore] interrupt init finished\n");
 
+	init_kernel_pt_fine_grained();
 	/* Enable PMU by setting PMCR_EL0 register */
 	pmu_init();
 	kinfo("[ChCore] pmu init finished\n");

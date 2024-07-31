@@ -57,6 +57,8 @@
 /* functions */
 int map_range_in_pgtbl_kernel(void *pgtbl, vaddr_t va, paddr_t pa,
 		       size_t len, vmr_prop_t flags);
+int map_range_in_pgtbl_kernel_init(void *pgtbl, vaddr_t va, paddr_t pa, size_t len,
+                       vmr_prop_t flags);
 int map_range_in_pgtbl(void *pgtbl, vaddr_t va, paddr_t pa,
 		       size_t len, vmr_prop_t flags);
 int unmap_range_in_pgtbl(void *pgtbl, vaddr_t va, size_t len);

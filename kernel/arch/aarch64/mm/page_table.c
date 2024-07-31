@@ -336,6 +336,63 @@ int query_in_pgtbl(void *pgtbl, vaddr_t va, paddr_t *pa, pte_t **entry)
         return 0;
 }
 
+void break_pointer() {
+        printk("out\n");
+        return ;
+};
+
+int map_range_in_pgtbl_kernel_init(void *pgtbl, vaddr_t va, paddr_t pa, size_t len,
+                       vmr_prop_t flags)
+{
+        vaddr_t end = va + len;
+        printk("%llx %llx %llx %llx\n", va, end, len, PAGE_SIZE * PTP_ENTRIES);
+
+        for (; va < end; va += PAGE_SIZE * PTP_ENTRIES, pa += PAGE_SIZE * PTP_ENTRIES) {
+                int ret;
+                int level = 0;
+                ptp_t *cur_ptp = (ptp_t *)pgtbl;
+                ptp_t *next_ptp;
+                pte_t *pte;
+                ptp_t *new_ptp;
+                paddr_t new_ptp_paddr;
+                pte_t new_pte_val;
+
+                while (level <= L2 && (ret = get_next_ptp(cur_ptp, level++, va, &next_ptp, &pte, true)) == NORMAL_PTP) {
+                        cur_ptp = next_ptp;
+                }
+                // printk("%llx   %d  %d  111\n", va, level, ret);
+                // BUG_ON(level <= L2 || ret != BLOCK_PTP);
+                /* alloc a single physical page as a new page table page */
+                new_ptp = get_pages(0);
+                if (new_ptp == NULL)    return -ENOMEM;
+                memset((void *)new_ptp, 0, PAGE_SIZE);
+
+                int i;
+                for (i = 0; i < PTP_ENTRIES && va + i * PAGE_SIZE < end; i ++) {
+                        new_ptp->ent[i].pte = 0;
+                        new_ptp->ent[i].l3_page.is_page = 1;
+                        new_ptp->ent[i].l3_page.is_valid = 1;
+                        new_ptp->ent[i].l3_page.pfn = ((pa + i * PAGE_SIZE) >> L3_INDEX_SHIFT);
+                        BUG_ON(pa + i * PAGE_SIZE != va + i * PAGE_SIZE - KBASE);
+                        set_pte_flags(&(new_ptp->ent[i]), flags, KERNEL_PTE);
+                }
+                printk("%llx 222 %llx    %llx\n", va + i * PAGE_SIZE, pa + i * PAGE_SIZE, break_pointer);
+
+                new_ptp_paddr = virt_to_phys((vaddr_t)new_ptp);
+
+                new_pte_val.pte = 0;
+                new_pte_val.table.is_valid = 1;
+                new_pte_val.table.is_table = 1;
+                new_pte_val.table.next_table_addr = (new_ptp_paddr >> PAGE_SHIFT);
+        printk("out\n");
+                pte->pte = new_pte_val.pte;
+        printk("out2\n");
+        }
+
+        break_pointer();
+        return 0;
+}
+
 static int map_range_in_pgtbl_common(void *pgtbl, vaddr_t va, paddr_t pa, size_t len,
                        vmr_prop_t flags, int kind)
 {
