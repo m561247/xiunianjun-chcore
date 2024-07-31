@@ -78,6 +78,17 @@ void init_kernel_pt_fine_grained(void)
                 BUG_ON(!(pte && pte->l3_page.is_valid
                                 && pte->l3_page.is_page));
         }
+
+        // printk("init_kernel_pt_fine_grained4\n");
+		// __asm__ volatile (
+		// 	"mov x8, %0\n"          // 将pgtbl的值移动到寄存器x8
+		// 	"msr ttbr1_el1, x8\n"   // 将x8的值写入ttbr1_el1
+		// 	"isb\n"                 // 指令同步屏障
+		// 	:
+		// 	: "r" (pgtbl)           // 输入操作数，pgtbl的值
+		// 	: "x8"                  // 被修改的寄存器
+		// );
+		// set_page_table(pgtbl);
 }
 
 /*
