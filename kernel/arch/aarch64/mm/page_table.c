@@ -315,7 +315,8 @@ int query_in_pgtbl(void *pgtbl, vaddr_t va, paddr_t *pa, pte_t **entry)
         }
         if (ret < 0)     return ret;
 
-        *entry = pte;
+        if (entry)      *entry = pte;
+        if (!pa)        return 0;
         switch (level - 1)
         {
         case L1:
@@ -365,8 +366,9 @@ static int map_range_in_pgtbl_common(void *pgtbl, vaddr_t va, paddr_t pa, size_t
                         cur_ptp = next_ptp;
                 }
                 if (ret < 0 && !(ret == -ENOMAPPING && level == 4))     return ret;
-                BUG_ON(!(ret == -ENOMAPPING && level == 4));
+                BUG_ON(level != 4);     // xiunian: permits redundant mapping
                 
+                pte->pte = 0;
                 pte->l3_page.is_valid = 1;
                 pte->l3_page.is_page = 1;
                 pte->l3_page.pfn = (pa >> L3_INDEX_SHIFT);

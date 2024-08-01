@@ -456,7 +456,9 @@ struct vmregion *find_vmr_for_va(struct vmspace *vmspace, vaddr_t addr)
         /* LAB 2 TODO 6 BEGIN */
         /* Hint: Find the corresponding vmr for @addr in @vmspace */
         /* BLANK BEGIN */
-
+        struct rb_node *node = rb_search(&(vmspace->vmr_tree), addr, cmp_vmr_and_va);
+        if (!node)      return NULL;
+        return rb_entry(node, struct vmregion, tree_node);
         /* BLANK END */
         /* LAB 2 TODO 6 END */
 }
