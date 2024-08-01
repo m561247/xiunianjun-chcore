@@ -368,10 +368,20 @@ int map_range_in_pgtbl_kernel_init(void *pgtbl, vaddr_t va, paddr_t pa, size_t l
                         new_ptp->ent[i].pte = 0;
                         new_ptp->ent[i].l3_page.is_page = 1;
                         new_ptp->ent[i].l3_page.is_valid = 1;
+                        new_ptp->ent[i].l3_page.attr_index = pte->l2_block.attr_index;
+                        new_ptp->ent[i].l3_page.NS = pte->l2_block.NS;
+                        new_ptp->ent[i].l3_page.AP = pte->l2_block.AP;
+                        new_ptp->ent[i].l3_page.SH = pte->l2_block.SH;
+                        new_ptp->ent[i].l3_page.AF = pte->l2_block.AF;
+                        new_ptp->ent[i].l3_page.nG = pte->l2_block.nG;
+                        new_ptp->ent[i].l3_page.DBM = pte->l2_block.DBM;
+                        new_ptp->ent[i].l3_page.Contiguous = pte->l2_block.Contiguous;
+                        new_ptp->ent[i].l3_page.PXN = pte->l2_block.PXN;
+                        new_ptp->ent[i].l3_page.UXN = pte->l2_block.UXN;
+                        new_ptp->ent[i].l3_page.PBHA = pte->l2_block.PBHA;
                         new_ptp->ent[i].l3_page.pfn = ((pa + i * PAGE_SIZE) >> L3_INDEX_SHIFT);
                         BUG_ON(pa + i * PAGE_SIZE != va + i * PAGE_SIZE - KBASE);
-                        BUG_ON(set_pte_flags(&(new_ptp->ent[i]), flags, USER_PTE));
-                        new_ptp->ent[i].l3_page.AP = 0;
+                        // BUG_ON(set_pte_flags(&(new_ptp->ent[i]), flags, USER_PTE));
                 }
                 // printk("%llx 222 %llx    %llx\n", va + i * PAGE_SIZE, pa + i * PAGE_SIZE, break_pointer);
 

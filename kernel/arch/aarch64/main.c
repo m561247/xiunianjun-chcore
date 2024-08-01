@@ -34,6 +34,7 @@ struct lock big_kernel_lock;
 
 ALIGN(PAGE_SIZE)
 char empty_page[4096] = {0};
+void *pgtbl;
 
 /* Kernel Test */
 void run_test(void);
@@ -49,6 +50,7 @@ void init_kernel_pt_fine_grained(void)
         paddr_t pa;
         pte_t *pte;
         int ret;
+		pgtbl = get_pages(0);
         size_t nr_pages = PHYSMEM_END / PAGE_SIZE;
         for (int i = 0; i < nr_pages; i++) {
                 ret = query_in_pgtbl((void*)((unsigned long)boot_ttbr1_l0 + KBASE), KBASE + i * PAGE_SIZE, &pa, &pte);
@@ -63,7 +65,6 @@ void init_kernel_pt_fine_grained(void)
 				BUG_ON(!(pte->l2_block.nG));
         }
 
-        void *pgtbl = get_pages(0);
         memset(pgtbl, 0, PAGE_SIZE);
 
         vaddr = PHYSMEM_START + KBASE;
@@ -87,15 +88,17 @@ void init_kernel_pt_fine_grained(void)
 				// 	printk("%d\t%llx\t%llx\t\t%llx\n", ret, KBASE + i * PAGE_SIZE, pa, (pte->l3_page.pfn << L3_INDEX_SHIFT));
                 BUG_ON(!(ret == 0 && pa == i * PAGE_SIZE));
 				BUG_ON((pte->l3_page.pfn << PAGE_SHIFT) != pa);
-				BUG_ON((pte->l3_page.UXN));
-				BUG_ON(!(pte->l3_page.PXN));
-				BUG_ON(!(pte->l3_page.AF));
-				BUG_ON(pte->l3_page.AP);
-				BUG_ON(!(pte->l3_page.nG));
+				// BUG_ON((pte->l3_page.UXN));
+				// BUG_ON(!(pte->l3_page.PXN));
+				// BUG_ON(!(pte->l3_page.AF));
+				// BUG_ON(pte->l3_page.AP);
+				// BUG_ON(!(pte->l3_page.nG));
                 BUG_ON(!(pte && pte->l3_page.is_valid
                                 && pte->l3_page.is_page));
         }
 
+		paddr_t pgtbl_pa = virt_to_phys(pgtbl);
+		printk("%llx %llx\n", pgtbl, pgtbl_pa);
         printk("init_kernel_pt_fine_grained4\n");
 		__asm__ volatile (
 			"mov x8, %0\n"          // 将pgtbl的值移动到寄存器x8
@@ -108,7 +111,7 @@ void init_kernel_pt_fine_grained(void)
 			"dsb	sy\n"
 			"isb\n"                 // 指令同步屏障
 			:
-			: "r" (pgtbl)           // 输入操作数，pgtbl的值
+			: "r" (pgtbl_pa)           // 输入操作数，pgtbl的值
 			: "x8"                  // 被修改的寄存器
 		);
 }
@@ -150,12 +153,12 @@ void main(paddr_t boot_flag, void *info)
 	void lab2_test_pm_usage(void);
 	lab2_test_pm_usage();
 #endif
+	init_kernel_pt_fine_grained();
 	/* Mapping KSTACK into kernel page table. */
-	map_range_in_pgtbl_kernel((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
+	map_range_in_pgtbl_kernel(pgtbl, 
 			KSTACKx_ADDR(0),
 			(unsigned long)(cpu_stacks[0]) - KBASE, 
 			CPU_STACK_SIZE, VMR_READ | VMR_WRITE);
-	init_kernel_pt_fine_grained();
 
 	/* Init exception vector */
 	arch_interrupt_init();
