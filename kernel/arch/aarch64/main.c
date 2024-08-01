@@ -46,20 +46,28 @@ void init_fpu_owner_locks(void);
 void init_kernel_pt_fine_grained(void)
 {
         u64 vaddr;
+        paddr_t pa;
+        pte_t *pte;
+        int ret;
+        size_t nr_pages = PHYSMEM_END / PAGE_SIZE;
+        for (int i = 0; i < nr_pages; i++) {
+                ret = query_in_pgtbl((void*)((unsigned long)boot_ttbr1_l0 + KBASE), KBASE + i * PAGE_SIZE, &pa, &pte);
+                // if (i * PAGE_SIZE + KBASE < 0xffffff0000401000UL)
+				// 	printk("%d\t%llx\t%llx\t\t%llx\n", ret, KBASE + i * PAGE_SIZE, pa, (pte->l3_page.pfn << L3_INDEX_SHIFT));
+				BUG_ON(!(pte && pte->l2_block.is_valid && pte->l2_block.is_table == 0));
+                BUG_ON(!(ret == 0 && pa == i * PAGE_SIZE && pa / (PAGE_SIZE * PTP_ENTRIES) * (PAGE_SIZE * PTP_ENTRIES) == (pte->l2_block.pfn << L2_INDEX_SHIFT)));
+				BUG_ON((pte->l2_block.UXN));
+				BUG_ON(!(pte->l2_block.PXN));
+        }
 
-        // printk("init_kernel_pt_fine_grained1\n");
         void *pgtbl = get_pages(0);
         memset(pgtbl, 0, PAGE_SIZE);
-        size_t nr_pages = PHYSMEM_END / PAGE_SIZE;
-        /* TTBR1_EL1 0-1G */
-        /* Normal memory: PHYSMEM_START ~ PERIPHERAL_BASE */
-        /* No NG bit here since the kernel mappings are shared */
+
         vaddr = PHYSMEM_START + KBASE;
         map_range_in_pgtbl_kernel_init(pgtbl, 
         // map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
                         vaddr, vaddr - KBASE, PERIPHERAL_BASE - PHYSMEM_START, 
                         VMR_EXEC | VMR_READ | VMR_WRITE);
-        // printk("init_kernel_pt_fine_grained2\n");
 
         /* Peripheral memory: PERIPHERAL_BASE ~ PHYSMEM_END */
         vaddr = KBASE + PERIPHERAL_BASE;
@@ -67,14 +75,16 @@ void init_kernel_pt_fine_grained(void)
         // map_range_in_pgtbl_kernel_init((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
                         vaddr, vaddr - KBASE, PHYSMEM_END - PERIPHERAL_BASE, 
                         VMR_EXEC | VMR_READ | VMR_WRITE | VMR_DEVICE);
-        // printk("init_kernel_pt_fine_grained3\n");
 
-        paddr_t pa;
-        pte_t *pte;
-        int ret;
+		printk("===================================================\n");
         for (int i = 0; i < nr_pages; i++) {
                 ret = query_in_pgtbl(pgtbl, KBASE + i * PAGE_SIZE, &pa, &pte);
+                // if (i * PAGE_SIZE + KBASE < 0xffffff0000401000UL)
+				// 	printk("%d\t%llx\t%llx\t\t%llx\n", ret, KBASE + i * PAGE_SIZE, pa, (pte->l3_page.pfn << L3_INDEX_SHIFT));
                 BUG_ON(!(ret == 0 && pa == i * PAGE_SIZE));
+				BUG_ON((pte->l3_page.pfn << PAGE_SHIFT) != pa);
+				BUG_ON((pte->l3_page.UXN));
+				BUG_ON(!(pte->l3_page.PXN));
                 BUG_ON(!(pte && pte->l3_page.is_valid
                                 && pte->l3_page.is_page));
         }
@@ -84,6 +94,8 @@ void init_kernel_pt_fine_grained(void)
 			"mov x8, %0\n"          // 将pgtbl的值移动到寄存器x8
 			"dsb	sy\n"
 			"isb\n"                 // 指令同步屏障
+			"tlbi	vmalle1is\n"
+			"dsb	sy\n"
 			"msr ttbr1_el1, x8\n"   // 将x8的值写入ttbr1_el1
 			"tlbi	vmalle1is\n"
 			"dsb	sy\n"
@@ -92,8 +104,6 @@ void init_kernel_pt_fine_grained(void)
 			: "r" (pgtbl)           // 输入操作数，pgtbl的值
 			: "x8"                  // 被修改的寄存器
 		);
-        flush_tlb_all();
-		// set_page_table(pgtbl);
 }
 
 /*

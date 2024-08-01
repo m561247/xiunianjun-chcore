@@ -370,7 +370,7 @@ int map_range_in_pgtbl_kernel_init(void *pgtbl, vaddr_t va, paddr_t pa, size_t l
                         new_ptp->ent[i].l3_page.is_valid = 1;
                         new_ptp->ent[i].l3_page.pfn = ((pa + i * PAGE_SIZE) >> L3_INDEX_SHIFT);
                         BUG_ON(pa + i * PAGE_SIZE != va + i * PAGE_SIZE - KBASE);
-                        set_pte_flags(&(new_ptp->ent[i]), flags, KERNEL_PTE);
+                        BUG_ON(set_pte_flags(&(new_ptp->ent[i]), flags, USER_PTE));
                 }
                 // printk("%llx 222 %llx    %llx\n", va + i * PAGE_SIZE, pa + i * PAGE_SIZE, break_pointer);
 
