@@ -58,6 +58,9 @@ void init_kernel_pt_fine_grained(void)
                 BUG_ON(!(ret == 0 && pa == i * PAGE_SIZE && pa / (PAGE_SIZE * PTP_ENTRIES) * (PAGE_SIZE * PTP_ENTRIES) == (pte->l2_block.pfn << L2_INDEX_SHIFT)));
 				BUG_ON((pte->l2_block.UXN));
 				BUG_ON(!(pte->l2_block.PXN));
+				BUG_ON(!(pte->l2_block.AF));
+				BUG_ON(pte->l2_block.AP);
+				BUG_ON(!(pte->l2_block.nG));
         }
 
         void *pgtbl = get_pages(0);
@@ -78,6 +81,7 @@ void init_kernel_pt_fine_grained(void)
 
 		printk("===================================================\n");
         for (int i = 0; i < nr_pages; i++) {
+                // ret = query_in_pgtbl((void*)((unsigned long)boot_ttbr1_l0 + KBASE), KBASE + i * PAGE_SIZE, &pa, &pte);
                 ret = query_in_pgtbl(pgtbl, KBASE + i * PAGE_SIZE, &pa, &pte);
                 // if (i * PAGE_SIZE + KBASE < 0xffffff0000401000UL)
 				// 	printk("%d\t%llx\t%llx\t\t%llx\n", ret, KBASE + i * PAGE_SIZE, pa, (pte->l3_page.pfn << L3_INDEX_SHIFT));
@@ -85,6 +89,9 @@ void init_kernel_pt_fine_grained(void)
 				BUG_ON((pte->l3_page.pfn << PAGE_SHIFT) != pa);
 				BUG_ON((pte->l3_page.UXN));
 				BUG_ON(!(pte->l3_page.PXN));
+				BUG_ON(!(pte->l3_page.AF));
+				BUG_ON(pte->l3_page.AP);
+				BUG_ON(!(pte->l3_page.nG));
                 BUG_ON(!(pte && pte->l3_page.is_valid
                                 && pte->l3_page.is_page));
         }
