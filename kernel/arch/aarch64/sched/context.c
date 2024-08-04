@@ -23,7 +23,9 @@ void init_thread_ctx(struct thread *thread, vaddr_t stack, vaddr_t func,
 
         /* LAB 3 TODO BEGIN */
         /* SP_EL0, ELR_EL1, SPSR_EL1*/
-
+        arch_set_thread_stack(thread, stack);
+        arch_set_thread_next_ip(thread, func);
+        thread->thread_ctx->tls_base_reg[SPSR_EL1] = SPSR_EL1_USER;
         /* LAB 3 TODO END */
 
         /* Set the state of the thread */

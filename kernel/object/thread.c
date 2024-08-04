@@ -238,25 +238,90 @@ void create_root_thread(void)
 
                 /* LAB 3 TODO BEGIN */
                 /* Get offset, vaddr, filesz, memsz from image*/
+                memcpy(data,
+                       (void *)((unsigned long)&binary_procmgr_bin_start
+                                + ROOT_PHDR_OFF + i * ROOT_PHENT_SIZE
+                                + PHDR_OFFSET_OFF),
+                       sizeof(data));
+                offset = (unsigned int)le32_to_cpu(*(u32 *)data) + 0x1000UL;
+                printk("offset = %llx\n", offset);
 
+                memcpy(data,
+                       (void *)((unsigned long)&binary_procmgr_bin_start
+                                + ROOT_PHDR_OFF + i * ROOT_PHENT_SIZE
+                                + PHDR_VADDR_OFF),
+                       sizeof(data));
+                vaddr = (unsigned int)le32_to_cpu(*(u32 *)data);
+
+                memcpy(data,
+                       (void *)((unsigned long)&binary_procmgr_bin_start
+                                + ROOT_PHDR_OFF + i * ROOT_PHENT_SIZE
+                                + PHDR_FILESZ_OFF),
+                       sizeof(data));
+                filesz = (unsigned int)le32_to_cpu(*(u32 *)data);
+
+                memcpy(data,
+                       (void *)((unsigned long)&binary_procmgr_bin_start
+                                + ROOT_PHDR_OFF + i * ROOT_PHENT_SIZE
+                                + PHDR_MEMSZ_OFF),
+                       sizeof(data));
+                memsz = (unsigned int)le32_to_cpu(*(u32 *)data);
                 /* LAB 3 TODO END */
 
                 struct pmobject *segment_pmo;
                 /* LAB 3 TODO BEGIN */
-
+                ret = create_pmo(memsz, PMO_ANONYM, root_cap_group, 0, &segment_pmo);
                 /* LAB 3 TODO END */
 
                 BUG_ON(ret < 0);
 
                 /* LAB 3 TODO BEGIN */
                 /* Copy elf file contents into memory*/
+                printk("filesz = %llx, vaddr = %llx\n", filesz, vaddr);
+                unsigned long size = filesz;
+                unsigned long read_offset = 0;
+                unsigned long to_read_write;
+                unsigned long pa;
+                unsigned long index;
+                unsigned long offset_in_page;
+                vaddr_t kva;
 
+                while (size > 0) {
+                        index = ROUND_DOWN(read_offset, PAGE_SIZE) / PAGE_SIZE;
+                        pa = get_page_from_pmo(segment_pmo, index);
+                        if (pa == 0) {
+                                /* Allocate a physical page for the anonymous
+                                 * pmo like a page fault happens.
+                                 */
+                                kva = (vaddr_t)get_pages(0);
+                                BUG_ON(kva == 0);
+
+                                pa = virt_to_phys((void *)kva);
+                                memset((void *)kva, 0, PAGE_SIZE);
+                                commit_page_to_pmo(segment_pmo, index, pa);
+                        } else {
+                                kva = phys_to_virt(pa);
+                        }
+                        /* Now kva is the beginning of some page, we should add
+                         * the offset inside the page. */
+                        offset_in_page = read_offset - ROUND_DOWN(read_offset, PAGE_SIZE);
+                        kva += offset_in_page;
+                        to_read_write = MIN(PAGE_SIZE - offset_in_page, size);
+
+                        printk("%llx, ro + off = %llx, torw = %llx, kva = %llx\n", &binary_procmgr_bin_start, read_offset + offset, to_read_write, kva);
+                        memcpy((void *)kva, (void *)((unsigned long)(&binary_procmgr_bin_start) + read_offset + offset), to_read_write);
+
+                        read_offset += to_read_write;
+                        size -= to_read_write;
+                }
                 /* LAB 3 TODO END */
                 
                 unsigned vmr_flags = 0;    
                 /* LAB 3 TODO BEGIN */
                 /* Set flags*/
-
+                vmr_flags |= (((flags & PHDR_FLAGS_R) == 0) ? 0 : VMR_READ);
+                vmr_flags |= (((flags & PHDR_FLAGS_W) == 0) ? 0 : VMR_WRITE);
+                vmr_flags |= (((flags & PHDR_FLAGS_X) == 0) ? 0 : VMR_EXEC);
                 /* LAB 3 TODO END */
 
                 ret = vmspace_map_range(init_vmspace,
@@ -281,13 +346,14 @@ void create_root_thread(void)
         prepare_env((char *)kva, stack, ROOT_NAME, &meta);
         stack -= ENV_SIZE_ON_STACK;
 
+        printk("entry = %llx, stack = %llx\n", meta.entry, stack);
         ret = thread_init(thread,
                           root_cap_group,
                           stack,
                           meta.entry,
                           ROOT_THREAD_PRIO,
                           TYPE_USER,
-                          smp_get_cpu_id());
+                          smp_get_cpu_id());    // bind to the cpu0
         BUG_ON(ret != 0);
 
         /* Add the thread into the thread_list of the cap_group */
