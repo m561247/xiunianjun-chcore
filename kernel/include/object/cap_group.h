@@ -33,11 +33,13 @@ struct object_slot {
 
 #define BASE_OBJECT_NUM		BITS_PER_LONG
 /* 1st cap is cap_group. 2nd cap is vmspace */
+// xiunian: that is different in the enum object_type, seems something strange
 #define CAP_GROUP_OBJ_ID	0
 #define VMSPACE_OBJ_ID		1
 
 struct slot_table {
 	unsigned int slots_size;
+	// xiunian: pointer array
 	struct object_slot **slots;
 	/*
 	 * if a bit in full_slots_bmp is 1, corresponding
@@ -59,6 +61,7 @@ struct cap_group {
 	/* The number of threads */
 	int thread_cnt;
 
+	// xiunian: maybe like the pid in Linux
 	/*
 	 * Each process has a unique badge as a global identifier which
 	 * is set by the system server, procmgr.

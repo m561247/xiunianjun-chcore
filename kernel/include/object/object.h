@@ -29,6 +29,7 @@ struct object {
 	 * refcount is added when a slot points to it and when get_object is
 	 * called. Object is freed when it reaches 0.
 	 */
+	// xiunian: should use atomic operations
 	volatile unsigned long refcount;
 
 	/*
@@ -52,6 +53,7 @@ enum object_type {
 
 struct cap_group;
 
+// xiunian: can use customed deconstruction? cool.
 typedef void (*obj_deinit_func)(void *);
 extern const obj_deinit_func obj_deinit_tbl[TYPE_NR];
 

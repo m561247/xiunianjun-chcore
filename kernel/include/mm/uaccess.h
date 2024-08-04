@@ -15,6 +15,7 @@
 
 #include <object/cap_group.h>
 
+// xiunian: I am curious how to get the user pagetable address
 int copy_from_user(void *kbuf, void *ubuf, size_t size);
 int copy_to_user(void *ubuf, void *kbuf, size_t size);
 int copy_from_user_remote(struct cap_group *cap_group, void *kernel_buf,

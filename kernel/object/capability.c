@@ -49,7 +49,7 @@ void *obj_alloc(u64 type, u64 size)
         u64 total_size;
         struct object *object;
 
-        total_size = sizeof(*object) + size;
+        total_size = sizeof(*object) + size; // xiunian: changeable struct
         object = kzalloc(total_size);
         if (!object)
                 return NULL;
@@ -91,7 +91,7 @@ cap_t cap_alloc(struct cap_group *cap_group, void *obj)
         struct object_slot *slot;
         cap_t r, slot_id;
 
-        object = container_of(obj, struct object, opaque);
+        object = container_of(obj, struct object, opaque); // xiunian: interesting
         slot_table = &cap_group->slot_table;
 
         write_lock(&slot_table->table_guard);

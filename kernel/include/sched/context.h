@@ -28,11 +28,11 @@ typedef struct sched_context {
 struct thread_ctx {
         /* Arch-dependent */
         /* Executing Context */
-        arch_exec_ctx_t ec;
+        arch_exec_ctx_t ec;     // xiunian: registers
         /* FPU States */
         void *fpu_state;
         /* TLS Related States */
-        unsigned long tls_base_reg[TLS_REG_NUM];
+        unsigned long tls_base_reg[TLS_REG_NUM]; // Thread Local Storage
 
         /* Arch-independent */
         /* Is FPU owner on some CPU: -1 means No; other means CPU ID */

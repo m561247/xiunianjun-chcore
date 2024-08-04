@@ -184,6 +184,7 @@ static int read_write_pmo(cap_t pmo_cap, unsigned long offset,
                         kva += offset_in_page;
                         to_read_write = MIN(PAGE_SIZE - offset_in_page, size);
 
+                        // xiunian: should there increase the userbuf pointer??
                         if (op_type == WRITE)
                                 r = copy_from_user((void *)kva,
                                                    (void *)user_buf,
