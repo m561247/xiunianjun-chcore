@@ -243,8 +243,7 @@ void create_root_thread(void)
                                 + ROOT_PHDR_OFF + i * ROOT_PHENT_SIZE
                                 + PHDR_OFFSET_OFF),
                        sizeof(data));
-                offset = (unsigned int)le32_to_cpu(*(u32 *)data) + 0x1000UL;
-                printk("offset = %llx\n", offset);
+                offset = (unsigned int)le32_to_cpu(*(u32 *)data);
 
                 memcpy(data,
                        (void *)((unsigned long)&binary_procmgr_bin_start
@@ -277,7 +276,6 @@ void create_root_thread(void)
 
                 /* LAB 3 TODO BEGIN */
                 /* Copy elf file contents into memory*/
-                printk("filesz = %llx, vaddr = %llx\n", filesz, vaddr);
                 unsigned long size = filesz;
                 unsigned long read_offset = 0;
                 unsigned long to_read_write;
@@ -308,8 +306,7 @@ void create_root_thread(void)
                         kva += offset_in_page;
                         to_read_write = MIN(PAGE_SIZE - offset_in_page, size);
 
-                        printk("%llx, ro + off = %llx, torw = %llx, kva = %llx\n", &binary_procmgr_bin_start, read_offset + offset, to_read_write, kva);
-                        memcpy((void *)kva, (void *)((unsigned long)(&binary_procmgr_bin_start) + read_offset + offset), to_read_write);
+                        memcpy((void *)kva, (void *)((unsigned long)(&binary_procmgr_bin_start) + read_offset + offset + ROOT_BIN_HDR_SIZE), to_read_write);
 
                         read_offset += to_read_write;
                         size -= to_read_write;
@@ -346,7 +343,6 @@ void create_root_thread(void)
         prepare_env((char *)kva, stack, ROOT_NAME, &meta);
         stack -= ENV_SIZE_ON_STACK;
 
-        printk("entry = %llx, stack = %llx\n", meta.entry, stack);
         ret = thread_init(thread,
                           root_cap_group,
                           stack,

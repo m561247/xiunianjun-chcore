@@ -57,9 +57,6 @@
 	mrs	x23, spsr_el1
 
 	/* LAB 3 TODO BEGIN */
-	mrs	x21, sp_el0
-	mrs	x22, elr_el1
-	mrs	x23, spsr_el1
 	stp	x30, x21, [sp, #240]
 	stp	x22, x23, [sp, #256]
 	/* LAB 3 TODO END */
@@ -256,7 +253,7 @@ sync_el1h:
 	/* LAB 3 TODO BEGIN */
 	/* jump to handle_entry_c, store the return value as the ELR_EL1 */
 	bl handle_entry_c
-	msr elr_el1, x0
+	str	x0, [sp, #256]
 	/* LAB 3 TODO END */
 	exception_exit
 
