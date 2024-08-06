@@ -129,7 +129,7 @@ static int get_one_char(void)
 static void put(char buffer[], unsigned size)
 {
         /* LAB 3 TODO BEGIN */
-
+        chcore_syscall2(CHCORE_SYS_putstr, (unsigned long)buffer, size);
         /* LAB 3 TODO END */
 }
 
