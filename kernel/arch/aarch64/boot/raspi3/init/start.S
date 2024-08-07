@@ -21,6 +21,7 @@
 .extern init_c
 
 BEGIN_FUNC(_start)
+	/* MPIDR_EL1: 多处理器鉴别寄存器（Multiprocessor Affinity Register） */
 	mrs	x8, mpidr_el1
 	and	x8, x8,	#0xFF
 	cbz	x8, primary

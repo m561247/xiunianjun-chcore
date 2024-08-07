@@ -45,17 +45,19 @@ struct queue_meta rr_ready_queue_meta[PLAT_CPU_NUM];
 int __rr_sched_enqueue(struct thread *thread, int cpuid)
 {
         /* Already in the ready queue */
+        // xiunian: may be used to prevent concurrent enqueue?
         if (thread->thread_ctx->state == TS_READY) {
                 return -EINVAL;
         }
         thread->thread_ctx->cpuid = cpuid;
         thread->thread_ctx->state = TS_READY;
-        obj_ref(thread);
+        obj_ref(thread);        // ?
 
         /* LAB 4 TODO BEGIN (exercise 2) */
         /* Insert thread into the ready queue of cpuid and update queue length */
         /* Note: you should add two lines of code. */
-
+        list_append(&(thread->ready_queue_node), &(rr_ready_queue_meta[cpuid].queue_head));
+        rr_ready_queue_meta[cpuid].queue_len += 1;
         /* LAB 4 TODO END (exercise 2) */
 
         return 0;
@@ -66,6 +68,7 @@ int __rr_sched_enqueue(struct thread *thread, int cpuid)
 #define MIGRATE_THRESHOLD     5
 
 /* A simple load balance when enqueue threads */
+// xiunian: always choose cpu with the least jobs
 unsigned int rr_sched_choose_cpu(void)
 {
         unsigned int i, cpuid, min_rr_len, local_cpuid, queue_len;
@@ -114,6 +117,7 @@ int rr_sched_enqueue(struct thread *thread)
                 return 0;
 
         cpubind = get_cpubind(thread);
+        // xiunian: if NO_AFF true, it is not a FPU owner
         cpuid = cpubind == NO_AFF ? rr_sched_choose_cpu() : cpubind;
 
         if (unlikely(thread->thread_ctx->sc->prio > MAX_PRIO))
@@ -141,7 +145,8 @@ int __rr_sched_dequeue(struct thread *thread)
         /* LAB 4 TODO BEGIN (exercise 3) */
         /* Delete thread from the ready queue and upate the queue length */
         /* Note: you should add two lines of code. */
-
+        list_del(&(thread->ready_queue_node));
+        rr_ready_queue_meta[thread->thread_ctx->cpuid].queue_len -= 1;
         /* LAB 4 TODO END (exercise 3) */
         thread->thread_ctx->state = TS_INTER;
         obj_put(thread);
@@ -224,7 +229,7 @@ out:
 int rr_sched(void)
 {
         /* WITH IRQ Disabled */
-        struct thread *old = current_thread;
+        struct thread *old = current_thread;    // xiunian: sched current cpu
         struct thread *new = 0;
 
         if (old) {
@@ -260,7 +265,7 @@ int rr_sched(void)
                         }
                         /* LAB 4 TODO BEGIN (exercise 6) */
                         /* Refill budget for current running thread (old) */
-
+                        old->thread_ctx->sc->budget = DEFAULT_BUDGET;
                         /* LAB 4 TODO END (exercise 6) */
 
                         old->thread_ctx->state = TS_INTER;
@@ -268,7 +273,7 @@ int rr_sched(void)
                         /* LAB 4 TODO BEGIN (exercise 4) */
                         /* Enqueue current running thread */
                         /* Note: you should just add a function call (one line of code) */
-
+                        rr_sched_enqueue(old);
                         /* LAB 4 TODO END (exercise 4) */
                         break;
                 case TS_WAITING:
@@ -291,7 +296,13 @@ int rr_sched_init(void)
 {
         /* LAB 4 TODO BEGIN (exercise 1) */
         /* Initial the ready queues (rr_ready_queue_meta) for each CPU core */
+        int i;
 
+        for (i = 0; i < PLAT_CPU_NUM; i++) {
+                lock_init(&(rr_ready_queue_meta[i].queue_lock));
+                rr_ready_queue_meta[i].queue_len = 0;
+                init_list_head(&(rr_ready_queue_meta[i].queue_head));
+        }
         /* LAB 4 TODO END (exercise 1) */
 
         test_scheduler_meta();

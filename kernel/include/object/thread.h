@@ -65,6 +65,7 @@ struct thread {
 	 */
 	void *general_ipc_config;
 
+	// xiunian: use the sleeping chain, interesting
 	struct sleep_state sleep_state;
 
 	/* Used for cap transfer in the IPC */
