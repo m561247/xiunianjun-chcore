@@ -539,7 +539,7 @@ cap_t sys_register_client(cap_t server_cap, unsigned long shm_config_ptr)
         sched_to_thread(register_cb_thread);
 
         /* Never return */
-        BUG_ON(1);
+        BUG_ON(1); // xiunian: will directly return to userspace in sys_ipc_register_cb_return
 
 out_fail_unlock:
         unlock(&register_cb_config->register_lock);

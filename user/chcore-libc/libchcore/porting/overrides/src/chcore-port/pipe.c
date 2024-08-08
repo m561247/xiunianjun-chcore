@@ -90,6 +90,7 @@ static void *init_pipe_server(void *arg)
                             DEFAULT_CLIENT_REGISTER_HANDLER);
 
         pipe_ipc_struct = ipc_register_client(pipe_server_thread_cap);
+        // xiunian: the ipc connection is set up after return from ipc_register_client
         if (pipe_ipc_struct == NULL) {
                 printf("pipe conn init failed\n");
                 usys_exit(-1);
