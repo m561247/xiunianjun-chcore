@@ -26,7 +26,7 @@
 struct fsm_client_cap_node {
         badge_t client_badge;
 
-        cap_t cap_table[16];
+        cap_t cap_table[16];    // xiunian: <mount id, cap>?
         int cap_num;
 
         struct list_head node;

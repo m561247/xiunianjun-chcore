@@ -21,16 +21,55 @@ struct list_head fsm_client_cap_table;
 int fsm_set_client_cap(badge_t client_badge, cap_t cap)
 {
         /* Lab 5 TODO Begin */
+        int mount_id = 0;
+        struct fsm_client_cap_node *n, *iter_tmp;
+        pthread_mutex_lock(&fsm_client_cap_table_lock);
 
+        for_each_in_list_safe (n, iter_tmp, node, &fsm_client_cap_table) {
+                if (n->client_badge == client_badge) {
+                        for (int i = 0; i < n->cap_num; i ++) {
+                                if (n->cap_table[i] == cap) {
+                                        mount_id = i;
+                                        goto out;
+                                }
+                        }
+                        n->cap_table[n->cap_num] = cap;
+                        n->cap_num += 1;
+                        mount_id = n->cap_num - 1;
+                        goto out;
+                }
+        }
+        n = (struct fsm_client_cap_node *)malloc(sizeof(*n));
+        n->cap_table[0] = cap;
+        n->cap_num = 1;
+        n->client_badge = client_badge;
+        list_add(&(n->node), &fsm_client_cap_table);
+        
+out:
+        pthread_mutex_unlock(&fsm_client_cap_table_lock);
         /* Lab 5 TODO End */
-        return 0;
+        return mount_id;
 }
 
 /* Return mount_id if record exists, otherwise -1 */
 int fsm_get_client_cap(badge_t client_badge, cap_t cap)
 {
         /* Lab 5 TODO Begin */
+        struct fsm_client_cap_node *n, *iter_tmp;
+        pthread_mutex_lock(&fsm_client_cap_table_lock);
 
+        for_each_in_list_safe (n, iter_tmp, node, &fsm_client_cap_table) {
+                if (n->client_badge == client_badge) {
+                        for (int i = 0; i < n->cap_num; i ++) {
+                                if (n->cap_table[i] == cap) {
+                                        pthread_mutex_unlock(&fsm_client_cap_table_lock);
+                                        return i;
+                                }
+                        }
+                }
+        }
+
+        pthread_mutex_unlock(&fsm_client_cap_table_lock);
         /* Lab 5 TODO End */
         return -1;
 }
