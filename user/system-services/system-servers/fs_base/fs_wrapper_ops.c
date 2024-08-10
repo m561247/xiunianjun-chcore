@@ -118,16 +118,36 @@ int fs_wrapper_open(badge_t client_badge, ipc_msg_t *ipc_msg,
                     struct fs_request *fr)
 {
         /* Lab 5 TODO Begin */
-
+        int ret = 0;
+        ino_t vno_id;
+        off_t vno_size;
+        int vno_type;
+        void *private;
+        struct fs_vnode *vnode;
         /*
          * Hint:
          *   1. alloc new server_entry
          *   2. get/alloc vnode
          *   3. associate server_entry with vnode
          */
-        
-        return 0;
+        ret = server_ops.open(fr->open.pathname, fr->open.flags, fr->open.mode, &vno_id, &vno_size, &vno_type, &private);
+        if (ret < 0)    return ret;
 
+        vnode = get_fs_vnode_by_id(vno_id);
+        if (!vnode) {
+                vnode = alloc_fs_vnode(vno_id, vno_type, vno_size, private);
+                push_fs_vnode(vnode);
+        } else {
+                inc_ref_fs_vnode(vnode);
+        }
+        BUG_ON(vnode->vnode_id != vno_id || vnode->size != vno_size || vnode->type != vno_type);
+        
+        fr->open.fid = alloc_entry();
+        BUG_ON(fr->open.fid < 0);
+        assign_entry(server_entrys[fr->open.fid], fr->open.flags, ((fr->open.mode & O_APPEND) == 0 ? 0 : vnode->size), 1, fr->open.pathname, vnode);
+        fs_wrapper_set_server_entry(client_badge, fr->open.new_fd, fr->open.fid);
+
+        return ret;
         /* Lab 5 TODO End */
 }
 
@@ -135,6 +155,13 @@ int fs_wrapper_close(badge_t client_badge, ipc_msg_t *ipc_msg,
                      struct fs_request *fr)
 {
         /* Lab 5 TODO Begin */
+        server_entrys[fr->close.fd]->refcnt -= 1;
+        if (server_entrys[fr->close.fd]->refcnt != 0)   return 0;
+
+        dec_ref_fs_vnode(server_entrys[fr->close.fd]->vnode);
+        fs_wrapper_clear_server_entry(client_badge, fr->close.fd);
+        free_entry(fr->close.fd);
+
         return 0;
         /* Lab 5 TODO End */
 }
@@ -142,44 +169,89 @@ int fs_wrapper_close(badge_t client_badge, ipc_msg_t *ipc_msg,
 int fs_wrapper_read(ipc_msg_t *ipc_msg, struct fs_request *fr)
 {
         /* Lab 5 TODO Begin */
-        return 0;
+        // if (fr->read.count > SSIZE_MAX) fr->read.count = SSIZE_MAX;
+        struct server_entry *entry = server_entrys[fr->read.fd]; // has checked in the outside
+        if ((entry->flags & O_WRONLY) != 0) {
+                return -EINVAL;
+        }
+        ssize_t ret = server_ops.read(entry->vnode->private, entry->offset, fr->read.count, ipc_get_msg_data(ipc_msg));
+        entry->offset += ret;
+        return ret;
         /* Lab 5 TODO End */
 }
 
 int fs_wrapper_pread(ipc_msg_t *ipc_msg, struct fs_request *fr)
 {
         /* Lab 5 TODO Begin (OPTIONAL) */
-        return 0;
+        struct server_entry *entry = server_entrys[fr->pread.fd]; // has checked in the outside
+        if ((entry->flags & O_WRONLY) != 0) {
+                return -EINVAL;
+        }
+        return server_ops.read(entry->vnode->private, fr->pread.offset, fr->pread.count, ipc_get_msg_data(ipc_msg));
         /* Lab 5 TODO End (OPTIONAL) */
 }
+
+#define MAX(x, y)	((x) < (y) ? (y) : (x))
 
 int fs_wrapper_pwrite(ipc_msg_t *ipc_msg, struct fs_request *fr)
 {
         /* Lab 5 TODO Begin (OPTIONAL) */
-        return 0;
+        struct server_entry *entry = server_entrys[fr->pwrite.fd]; // has checked in the outside
+        if ((entry->flags & O_RDONLY) != 0) {
+                return -EINVAL;
+        }
+        ssize_t ret = server_ops.write(entry->vnode->private, fr->pwrite.offset, fr->pwrite.count, ipc_get_msg_data(ipc_msg));
+        entry->vnode->size = MAX(fr->pwrite.offset + ret, entry->vnode->size);
+        return ret;
         /* Lab 5 TODO End (OPTIONAL) */
 }
 
 int fs_wrapper_write(ipc_msg_t *ipc_msg, struct fs_request *fr)
 {
         /* Lab 5 TODO Begin */
-        return 0;
+        struct server_entry *entry = server_entrys[fr->write.fd]; // has checked in the outside
+        if ((entry->flags & O_RDONLY) != 0) {
+                return -EINVAL;
+        }
+        ssize_t ret = server_ops.write(entry->vnode->private, entry->offset, fr->write.count, ipc_get_msg_data(ipc_msg) + sizeof(struct fs_request));
+        entry->offset += ret;
+        entry->vnode->size = MAX(entry->offset, entry->vnode->size);
+        return ret;
         /* Lab 5 TODO End */
 }
 
 int fs_wrapper_lseek(ipc_msg_t *ipc_msg, struct fs_request *fr)
 {
         /* Lab 5 TODO Begin */
-
         /* 
          * Hint: possible values of whence:
          *   SEEK_SET 0
          *   SEEK_CUR 1
          *   SEEK_END 2
          */
-        
-        return 0;
-
+        struct server_entry *entry = server_entrys[fr->lseek.fd]; // has checked in the outside
+        switch (fr->lseek.whence)
+        {
+        case SEEK_SET:
+                if (fr->lseek.offset < 0)       goto LSEEK_ERROR;
+                entry->offset = fr->lseek.offset;
+                break;
+        case SEEK_CUR:
+                if (entry->offset + fr->lseek.offset < 0)       goto LSEEK_ERROR;
+                entry->offset += fr->lseek.offset;
+                break;
+        case SEEK_END:
+                if (entry->offset + fr->lseek.offset < 0)       goto LSEEK_ERROR;
+                entry->offset = entry->vnode->size + fr->lseek.offset;
+                break;
+        default:
+                printf("Error in lseek: unsupported seek type %d", fr->lseek.whence);
+                goto LSEEK_ERROR;
+        }
+        fr->lseek.ret = entry->offset;
+        return entry->offset;
+LSEEK_ERROR:
+        return -EINVAL;
         /* Lab 5 TODO End */
 }
 
@@ -485,14 +557,23 @@ int fs_wrapper_fmap(badge_t client_badge, ipc_msg_t *ipc_msg,
         if (length % PAGE_SIZE) {
                 length = ROUND_UP(length, PAGE_SIZE);
         }
-        UNUSED(addr);
-        UNUSED(fd);
-        UNUSED(offset);
 
         /* Lab 5 TODO Begin */
-        UNUSED(pmo_cap);
-        UNUSED(vnode);
-        UNUSED(ret);
+        /* pmo create */
+        pmo_cap = usys_create_pmo(length, PMO_FILE);
+        if (pmo_cap <= 0) {
+                printf("Fail: cannot create the new pmo for fmap\n");
+                return -EINVAL;
+        }
+        vnode->pmo_cap = pmo_cap;
+        ret = fmap_area_insert(client_badge, (vaddr_t)addr, length, vnode, offset, flags, prot);
+        if (ret < 0) {
+                usys_revoke_cap(pmo_cap, false);
+                return ret;
+        }
+        ipc_set_msg_return_cap_num(ipc_msg, 1);
+        ipc_set_msg_cap(ipc_msg, 0, pmo_cap);
+        *ret_with_cap = true;
         return 0;
         /* Lab 5 TODO End */
 }
