@@ -82,9 +82,15 @@ struct fs_vnode *alloc_fs_vnode(ino_t id, enum fs_vnode_type type, off_t size,
                                 void *private)
 {
         /* Lab 5 TODO Begin */
-
-        return NULL;
-
+        struct fs_vnode *vnode = (struct fs_vnode *)malloc(sizeof(struct fs_vnode));
+        memset(vnode, 0, sizeof(struct fs_vnode));
+        vnode->vnode_id = id;
+        vnode->refcnt = 1;
+        vnode->size = size;
+        vnode->type = type;
+        vnode->private = private;
+        vnode->pmo_cap = -1;
+        return vnode;
         /* Lab 5 TODO End */
 }
 
@@ -105,30 +111,43 @@ void pop_free_fs_vnode(struct fs_vnode *n)
 struct fs_vnode *get_fs_vnode_by_id(ino_t vnode_id)
 {
         /* Lab 5 TODO Begin */
-        
+        struct fs_vnode *n;
+        struct rb_node *node;
+        rb_for_each(fs_vnode_list, node)
+        {
+                n = rb_entry(node, struct fs_vnode, node);
+                if (n->vnode_id == vnode_id) {
+                        return n;
+                }
+        }
         return NULL;
-
         /* Lab 5 TODO End */
 }
 
 /* increase refcnt for vnode */
+// xiunian: TODO should hold the lock?
 int inc_ref_fs_vnode(void *n)
 {
         /* Lab 5 TODO Begin */
-
-
+        if (!n)      return -1;
+        struct fs_vnode *vnode = (struct fs_vnode *)n;
+        vnode->refcnt += 1;
         /* Lab 5 TODO End */
         return 0;
 }
 
 /* decrease vnode ref count and close file when refcnt is 0 */
+// xiunian: TODO
 int dec_ref_fs_vnode(void *node)
 {
         /* Lab 5 TODO Begin */
-
-        UNUSED(node);
-        
+        if (!node)      return -1;
+        struct fs_vnode *vnode = (struct fs_vnode *)node;
+        BUG_ON(vnode->refcnt == 0);
+        vnode->refcnt -= 1;
+        if (vnode->refcnt == 0) {
+                pop_free_fs_vnode(vnode);
+        }
         /* Lab 5 TODO End */
-
         return 0;
 }

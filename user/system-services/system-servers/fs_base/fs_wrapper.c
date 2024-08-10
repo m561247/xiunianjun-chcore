@@ -113,7 +113,7 @@ int fs_wrapper_get_server_entry(badge_t client_badge, int fd)
         struct server_entry_node *n;
 
         /* Stable fd number, need no translating */
-        if (fd == AT_FDROOT)
+        if (fd == AT_FDROOT)    // xiunian: TODO, what?
                 return AT_FDROOT;
 
         /* Validate fd */
@@ -122,9 +122,15 @@ int fs_wrapper_get_server_entry(badge_t client_badge, int fd)
         }
 
         /* Lab 5 TODO Begin */
-
-        UNUSED(n);
-
+        pthread_spin_lock(&server_entry_mapping_lock);
+        for_each_in_list (n, struct server_entry_node, node, &server_entry_mapping) {
+                if (n->client_badge == client_badge) {
+                        int res = n->fd_to_fid[fd];
+                        pthread_spin_unlock(&server_entry_mapping_lock);
+                        return res;
+                }
+        }
+        pthread_spin_unlock(&server_entry_mapping_lock);
         /* Lab 5 TODO End */
         return -1;
 }
@@ -143,9 +149,33 @@ int fs_wrapper_set_server_entry(badge_t client_badge, int fd, int fid)
          * Check if client_badge already involved, 
          * create new server_entry_node if not.
          */
+        pthread_spin_lock(&server_entry_mapping_lock);
 
-        UNUSED(private_iter);
-        
+        for_each_in_list (private_iter,
+                          struct server_entry_node,
+                          node,
+                          &server_entry_mapping) {
+                if (private_iter->client_badge == client_badge) {
+                        private_iter->fd_to_fid[fd] = fid;
+                        pthread_spin_unlock(&server_entry_mapping_lock);
+                        return 0;
+                }
+        }
+
+        private_iter = (struct server_entry_node *)malloc(sizeof(*private_iter));
+        if (!private_iter) {
+                pthread_spin_unlock(&server_entry_mapping_lock);
+                return -ENOMEM;
+        }
+        private_iter->client_badge = client_badge;
+        for (int i = 0; i < MAX_SERVER_ENTRY_NUM; i ++) {
+                private_iter->fd_to_fid[i] = -1;
+        }
+        private_iter->fd_to_fid[fd] = fid;
+        list_add(&(private_iter->node), &server_entry_mapping);
+
+        pthread_spin_unlock(&server_entry_mapping_lock);
+
         /* Lab 5 TODO End */
         return 0;
 }
